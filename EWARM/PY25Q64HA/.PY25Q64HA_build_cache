@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BuildDb>
+    <Tool>
+        <Name>linker</Name>
+        <Parent>
+            <Path>C:\WorkSpace\PY25Q64HA\EWARM\PY25Q64HA\Exe\PY25Q64HA.out</Path>
+            <Output>
+                <Path>C:\WorkSpace\PY25Q64HA\EWARM\PY25Q64HA\List\PY25Q64HA.map</Path>
+            </Output>
+        </Parent>
+    </Tool>
+</BuildDb>
