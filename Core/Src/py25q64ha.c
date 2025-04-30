@@ -37,6 +37,35 @@ PY25Q64_STATE PY25Q64_Init(void)
   return PY25Q64_OK;
 }
 
+PY25Q64_STATE PY25Q64_QPIInitConfiguration(void)
+{
+  uint8_t qe = 0;
+  uint8_t wel = 0;
+  
+  if (PY25Q64_QPIDisable() != PY25Q64_OK){
+    return PY25Q64_CHIP_ERR;
+  }
+  
+  PY25Q64_ReadStatus0Register(&wel);
+  PY25Q64_ReadStatus1Register(&qe);
+  
+  if((qe&PY25Q_QE_MASK) != PY25Q_QE_MASK){
+    PY25Q64_QuadModeEnable();
+  }
+  
+  PY25Q64_QPIEnable();
+  
+  if(PY25Q64_QPI_AutoPollingMemReady() != PY25Q64_OK){
+    return PY25Q64_CHIP_ERR;
+  }
+  
+  if((wel&PY25Q_WEL_MASK) != PY25Q_WEL_MASK){
+    PY25Q64_QPI_WriteEnable();
+  }
+  
+  return PY25Q64_OK;
+}
+
 PY25Q64_STATE PY25Q64_Quad_MemoryMappedMode(void)
 {
   XSPI_RegularCmdTypeDef sCommands = { 0 };
@@ -86,15 +115,9 @@ PY25Q64_STATE PY25Q64_QPI_MemoryMappedMode(void)
 {
   XSPI_RegularCmdTypeDef sCommands = { 0 };
   XSPI_MemoryMappedTypeDef MemMappedCfg = { 0 };
-  uint8_t wel = 0;
 
-  if(PY25Q64_QPI_AutoPollingMemReady() != PY25Q64_OK){
+  if (PY25Q64_QPIInitConfiguration() != PY25Q64_OK){
     return PY25Q64_CHIP_ERR;
-  }
-  
-  PY25Q64_QPI_ReadStatus0Register(&wel);
-  if((wel&PY25Q_WEL_MASK) != PY25Q_WEL_MASK){
-      PY25Q64_QPI_WriteEnable();
   }
   
   sCommands.OperationType = HAL_XSPI_OPTYPE_WRITE_CFG;
@@ -131,11 +154,65 @@ PY25Q64_STATE PY25Q64_QPI_MemoryMappedMode(void)
   return PY25Q64_OK;
 }
 
+PY25Q64_STATE PY25Q64_QPI_Program(uint8_t* pData, uint16_t len, uint32_t rawAddr)
+{
+  XSPI_RegularCmdTypeDef sCommands = { 0 };
+  uint32_t endAddr = 0U;
+  uint32_t curAddr = 0U;
+  uint32_t curSize = 0U;  
+
+  if (PY25Q64_QPIInitConfiguration() != PY25Q64_OK){
+    return PY25Q64_CHIP_ERR;
+  }
+
+  /* Calculation of the size between the write address and the end of the page */
+  curSize = MEM_PAGE_SIZE - (rawAddr % MEM_PAGE_SIZE);
+
+  /* Check if the size of the data is less than the remaining place in the page */
+  if (curSize > len){
+    curSize = len;
+  }
+  
+  sCommands.OperationType = HAL_XSPI_OPTYPE_COMMON_CFG;
+  sCommands.InstructionMode = HAL_XSPI_INSTRUCTION_4_LINES;
+  sCommands.Instruction = PY25Q_QPI_PP;
+  sCommands.AddressMode = HAL_XSPI_ADDRESS_4_LINES;
+  sCommands.AddressWidth = HAL_XSPI_ADDRESS_24_BITS;
+  sCommands.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
+  sCommands.DummyCycles = 0U;
+  sCommands.DataMode = HAL_XSPI_DATA_4_LINES;
+  sCommands.DQSMode = HAL_XSPI_DQS_DISABLE;
+
+  do{
+    sCommands.Address = curAddr;
+    sCommands.DataLength = curSize;
+
+    if (PY25Q64_QPI_AutoPollingMemReady() != PY25Q64_OK){
+      return PY25Q64_CHIP_ERR;
+    }
+    
+    if (HAL_XSPI_Command(&hxspi1, &sCommands, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK){
+      return PY25Q64_SPI_ERR;
+    }
+
+    if (HAL_XSPI_Transmit(&hxspi1, pData, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK){
+      return PY25Q64_SPI_ERR;
+    }
+
+    curAddr += curSize;
+    pData += curSize;
+    curSize = ((curAddr + MEM_PAGE_SIZE) > endAddr) ? (endAddr - curAddr) : MEM_PAGE_SIZE;
+
+  }while(curAddr < endAddr);
+
+  return PY25Q64_OK;
+}
+    
 PY25Q64_STATE PY25Q64_QPI_MassErase(void)
 {
   XSPI_RegularCmdTypeDef sCommands = { 0 };
-
-  if(PY25Q64_QPI_AutoPollingMemReady() != PY25Q64_OK){
+  
+  if (PY25Q64_QPIInitConfiguration() != PY25Q64_OK){
     return PY25Q64_CHIP_ERR;
   }
   
@@ -164,6 +241,10 @@ PY25Q64_STATE PY25Q64_QPI_BlockErase(uint32_t BlockAddr)
 {
   XSPI_RegularCmdTypeDef sCommands = { 0 };
   uint32_t RawAddr = 0;
+
+  if (PY25Q64_QPIInitConfiguration() != PY25Q64_OK){
+    return PY25Q64_CHIP_ERR;
+  }
 
   if(BlockAddr >= MEM_BLOCK_COUNT){
     return PY25Q64_PARAM_ERROR;

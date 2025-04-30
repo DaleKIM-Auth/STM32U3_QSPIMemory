@@ -142,8 +142,10 @@
 #define MEM_FLASH_SIZE     64U
 #define MEM_BLOCK_SIZE     64U
 #define MEM_SECTOR_SIZE    4U
+#define MEM_PAGE_SIZE      256U
 #define MEM_BLOCK_COUNT    127U
 #define MEM_SECTOR_COUNT   (BLOCK_COUNT * 16U)
+#define MEM_PAGE_COUNT     (SECTOR_COUNT * 16U)
 
 typedef enum{
   PY25Q64_OK          = 0x0,
@@ -163,8 +165,10 @@ typedef enum{
   ((obj) = ((val) & (1U << (bit)))) ? QUAD_SET : QUAD_RESET)
 
 PY25Q64_STATE PY25Q64_Init(void);
+PY25Q64_STATE PY25Q64_QPIInitConfiguration(void);
 PY25Q64_STATE PY25Q64_MemoryMappedMode(void);
 PY25Q64_STATE PY25Q64_QPI_MemoryMappedMode(void);
+PY25Q64_STATE PY25Q64_QPI_Program(uint8_t* pData, uint16_t len, uint32_t rawAddr);
 PY25Q64_STATE PY25Q64_QPI_MassErase(void);
 PY25Q64_STATE PY25Q64_QPI_BlockErase(uint32_t BlockAddr);
 PY25Q64_STATE PY25Q64_QPI_SetReadParameter(void);

@@ -90,9 +90,7 @@ uint32_t HAL_GetTick(void)
 }
 
 int Init(void)
-{ 
-
-    
+{     
   __HAL_RCC_PWR_CLK_ENABLE();
   
   SystemInit();
@@ -167,6 +165,7 @@ int main(void)
     /* Erase block 0 */
     PY25Q64_QPI_BlockErase(0);
     
+#if 0
     /* Set Memory Mapped Mode */
     PY25Q64_QPI_MemoryMappedMode();
     
@@ -176,9 +175,14 @@ int main(void)
       *mem_addr = aTxBuffer[index];
       mem_addr++;
     }
+#else    
+    PY25Q64_QPI_Program(aTxBuffer, BUFFERSIZE, 0U);
     
+     /* Set Memory Mapped Mode */
+    PY25Q64_QPI_MemoryMappedMode();
+#endif
     HAL_Delay(10);
-
+    
     /* Read operation */
     mem_addr = (uint8_t *)(OCTOSPI1_BASE + address);
     for (int index = 0; index < BUFFERSIZE; index ++){
