@@ -22,7 +22,7 @@
 #define PY25Q_SE       0x20U /* erase selected sector */
 #define PY25Q_BE32     0x52U /* erase selected 32K block */
 #define PY25Q_BE       0xD8U /* erase selected 64K block */
-#define PY25Q_CE       0xC7U /* erase whole chip */
+#define PY25Q_CE       0x60U /* erase whole chip */
 #define PY25Q_PP       0x02U /* program selected page */
 #define PY25Q_QPP      0x32U /* quad input to program selecte page */
 #define PY25Q_PES      0x75U /* suspend program/erase operation */
@@ -177,7 +177,13 @@ PY25Q64_STATE PY25Q64_QPI_WriteDisable(void);
 PY25Q64_STATE PY25Q64_QPI_ReadStatus0Register(uint8_t *reg);
 PY25Q64_STATE PY25Q64_QPI_ReadStatus1Register(uint8_t *reg);
 PY25Q64_STATE PY25Q64_QPI_AutoPollingMemReady(void);
+PY25Q64_STATE PY25Q63_QPI_IsBusy(void);
 uint8_t PY25Q64_QPI_ReadID(void);
+
+PY25Q64_STATE PY25Q64_MemoryMappedMode(void);
+PY25Q64_STATE PY25Q64_Program(uint8_t* pData, uint16_t len, uint32_t rawAddr);
+PY25Q64_STATE PY25Q64_MassErase(void);
+PY25Q64_STATE PY25Q64_BlockErase(uint32_t BlockAddr);
 PY25Q64_STATE PY25Q64_QPIEnable(void);
 PY25Q64_STATE PY25Q64_QPIDisable(void);
 PY25Q64_STATE PY25Q64_WriteEnable(void);
@@ -188,7 +194,8 @@ PY25Q64_STATE PY25Q64_AutoPollingMemReady(void);
 PY25Q64_STATE PY25Q64_ResetMemory(void);
 PY25Q64_STATE PY25Q64_ReadStatus0Register(uint8_t *reg);
 PY25Q64_STATE PY25Q64_ReadStatus1Register(uint8_t *reg);
+PY25Q64_STATE PY25Q63_IsBusy(void);
 uint8_t PY25Q64_ReadID(void);
-
+void PY25Q64_Delay(uint32_t ms);
 
 #endif /* __PY25Q64HA_DRIVER__ */

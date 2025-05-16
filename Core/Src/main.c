@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "py25q64ha.h"
+#include "generated_data_50KB.h"
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,11 +44,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 XSPI_HandleTypeDef hxspi1;
-
+UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
-#define COUNTOF(__BUFFER__)         (sizeof(__BUFFER__) / sizeof(*(__BUFFER__)))
-#define BUFFERSIZE                  (COUNTOF(aTxBuffer) - 1)
-uint8_t aTxBuffer[] = " ****Memory-mapped OSPI communication****  ****Memory-mapped OSPI communication****  ****Memory-mapped OSPI communication****  ****Memory-mapped OSPI communication****  ****Memory-mapped OSPI communication****  ****Memory-mapped OSPI communication**** ";
+#pragma section=".bss"
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -54,7 +54,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
-void SystemClockInit(void);
+int SystemClockInit(void);
 int Init(void);
 KeepInComplilation int Read(uint32_t Address, uint32_t Size, uint16_t* buffer);
 KeepInComplilation int Write(uint32_t Address, uint32_t Size, uint8_t* buffer);
@@ -62,10 +62,12 @@ KeepInComplilation int SectorErase(uint32_t StartAddress, uint32_t EndAddress);
 KeepInComplilation int MassErase(uint32_t Parallelism);
 KeepInComplilation uint64_t Verify(uint32_t FlashAddr, uint32_t RAMBufferAddr, uint32_t Size);
 
+static void MX_OCTOSPI1_DeInit(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 
 HAL_StatusTypeDef HAL_InitTick(uint32_t HAL_InitTick)
 { 
@@ -83,32 +85,95 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t HAL_InitTick)
 
 uint32_t HAL_GetTick(void)
 {
-  uint32_t cycles_per_ms = SystemCoreClock / 1000;
+  uint32_t cycles_per_ms = SystemCoreClock / 1000000;
   uwTick = (DWT->CYCCNT) / cycles_per_ms;
   
   return uwTick;
 }
 
-int Init(void)
-{     
-  __HAL_RCC_PWR_CLK_ENABLE();
+int Write (uint32_t Address, uint32_t Size, uint8_t* buffer)
+{
+  __disable_irq();
+
+  /* QuadSPI De-Init */
+  MX_OCTOSPI1_DeInit();
+
+  /* QuadSPI Init */
+  MX_OCTOSPI1_Init();
+
+  Address = Address & 0x0FFFFFFF;
+
+  PY25Q64_AutoPollingMemReady();
+
+  /* Writes an amount of data to the QSPI memory */
+  if(PY25Q64_Program(buffer, Size, Address) != PY25Q64_OK){
+    return 0;
+  }
+
+  __enable_irq();
+
+  return 1;
+}
+
+/**
+ * @brief 	 Full erase of the device 						
+ * @param 	 Parallelism : 0 																		
+ * @retval  1           : Operation succeeded
+ * @retval  0           : Operation failed											
+ */
+int MassErase (uint32_t Parallelism )
+{ 
+  __disable_irq();
+
+  /* QuadSPI De-Init */
+  MX_OCTOSPI1_DeInit();
+
+  /* QuadSPI Init */
+  MX_OCTOSPI1_Init();
   
+  PY25Q64_AutoPollingMemReady();
+  
+  /* Erase the entire QSPI memory */
+  if (PY25Q64_MassErase() != PY25Q64_OK){
+      return 0;
+  }
+
+  __enable_irq();
+
+   return 1;
+}
+
+int Init(void)
+{
+  int32_t result=0;
+  
+  __disable_irq();  
+  
+  char *startadd = __section_begin(".bss");
+  unsigned int size = __section_size(".bss");
+  memset(startadd, 0, size);
+
   SystemInit();
   HAL_InitTick(0);
 
-  SystemClockInit();
+  result = SystemClockInit();  
+  if(result != 1){
+    return 0;
+  }
   
-  MX_GPIO_Init();
+  //MX_GPIO_Init();
   MX_ICACHE_Init();
 
-  HAL_XSPI_MspDeInit(&hxspi1);
+  MX_OCTOSPI1_DeInit();
 
   MX_OCTOSPI1_Init();
 
   if(PY25Q64_Init() != PY25Q64_OK){
     return 0;
   }
-  
+
+  __enable_irq();
+
   return 1;
 }
 
@@ -122,13 +187,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  __disable_irq();
-  //char *startadd = __section_begin(".bss");
-  //uint32_t size = __section_begin(".bss");
-  //memset(startadd, 0, size);
-    
 #if 1
-  Init();
+  Init();  
 #else
   /* USER CODE END 1 */
 
@@ -156,35 +216,20 @@ int main(void)
 #endif
   /* External memory test code */
   {
-    uint32_t address = 0;    
-    __IO uint8_t *mem_addr;
+     __IO uint8_t *mem_addr;
 
-    /* QPI enable */
-    PY25Q64_QPIEnable();
-    
     /* Erase block 0 */
-    PY25Q64_QPI_BlockErase(0);
-    
-#if 0
-    /* Set Memory Mapped Mode */
-    PY25Q64_QPI_MemoryMappedMode();
-    
-    /* Write operation */
-    mem_addr = (uint8_t *)(OCTOSPI1_BASE + address);
-    for (int index = 0; index < BUFFERSIZE; index++){
-      *mem_addr = aTxBuffer[index];
-      mem_addr++;
-    }
-#else    
-    PY25Q64_QPI_Program(aTxBuffer, BUFFERSIZE, 0U);
-    
+    MassErase(0);
+
+    Write(0x90000000UL, BUFFERSIZE, aTxBuffer);
+
      /* Set Memory Mapped Mode */
-    PY25Q64_QPI_MemoryMappedMode();
-#endif
-    HAL_Delay(10);
+    PY25Q64_MemoryMappedMode();
+
+    PY25Q64_Delay(10);
     
     /* Read operation */
-    mem_addr = (uint8_t *)(OCTOSPI1_BASE + address);
+    mem_addr = (uint8_t *)(OCTOSPI1_BASE);
     for (int index = 0; index < BUFFERSIZE; index ++){
       if(*mem_addr != aTxBuffer[index]){
         Error_Handler();
@@ -193,8 +238,7 @@ int main(void)
     }
 
   }
-  
-  __enable_irq();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -315,7 +359,7 @@ void MX_OCTOSPI1_Init(void)
   hxspi1.Init.FifoThresholdByte = 1;
   hxspi1.Init.MemoryMode = HAL_XSPI_SINGLE_MEM;
   hxspi1.Init.MemoryType = HAL_XSPI_MEMTYPE_MICRON;
-  hxspi1.Init.MemorySize = HAL_XSPI_SIZE_64MB;
+  hxspi1.Init.MemorySize = HAL_XSPI_SIZE_8MB;
   hxspi1.Init.ChipSelectHighTimeCycle = 1;
   hxspi1.Init.FreeRunningClock = HAL_XSPI_FREERUNCLK_DISABLE;
   hxspi1.Init.ClockMode = HAL_XSPI_CLOCK_MODE_0;
@@ -364,28 +408,30 @@ static void MX_GPIO_Init(void)
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClockInit(void)
+int SystemClockInit(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   uint32_t msiclk = 0x0U;
-  
+
+  __HAL_RCC_PWR_CLK_ENABLE();
+
   /** Enable Epod Booster
   */
   if (HAL_RCCEx_EpodBoosterClkConfig(RCC_EPODBOOSTER_SOURCE_MSIS, RCC_EPODBOOSTER_DIV1) != HAL_OK)
   {
-    Error_Handler();
+    return 0;
   }
   if (HAL_PWREx_EnableEpodBooster() != HAL_OK)
   {
-    Error_Handler();
+    return 0;
   }
 
   /** Configure the main internal regulator output voltage
   */
   if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
   {
-    Error_Handler();
+    return 0;
   }
 
   /** Set Flash latency before increasing MSIS
@@ -400,7 +446,7 @@ void SystemClockInit(void)
   RCC_OscInitStruct.MSISDiv = RCC_MSI_DIV1;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
-    Error_Handler();
+    return 0;
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
@@ -416,7 +462,7 @@ void SystemClockInit(void)
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
-    Error_Handler();
+    return 0;
   }
 
   if (RCC_OscInitStruct.MSISSource == RCC_MSI_RC0){
@@ -441,6 +487,21 @@ void SystemClockInit(void)
   default:
     SystemCoreClock = 24000000U;
   }
+
+  return 1;
+}
+
+static void MX_OCTOSPI1_DeInit(void)
+{
+  if(hxspi1.State != HAL_XSPI_STATE_RESET){
+    HAL_XSPI_DeInit(&hxspi1);
+  }    
+    
+  HAL_XSPI_MspDeInit(&hxspi1);
+    
+  __HAL_RCC_OCTOSPI1_FORCE_RESET();
+  __HAL_RCC_OCTOSPI1_RELEASE_RESET();
+  __HAL_RCC_OCTOSPI1_CLK_DISABLE();  
 }
 /* USER CODE END 4 */
 
