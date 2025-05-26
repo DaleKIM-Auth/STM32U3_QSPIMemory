@@ -168,7 +168,7 @@ PY25Q64_STATE PY25Q64_Init(void);
 PY25Q64_STATE PY25Q64_QPIInitConfiguration(void);
 PY25Q64_STATE PY25Q64_MemoryMappedMode(void);
 PY25Q64_STATE PY25Q64_QPI_MemoryMappedMode(void);
-PY25Q64_STATE PY25Q64_QPI_Program(uint8_t* pData, uint16_t len, uint32_t rawAddr);
+PY25Q64_STATE PY25Q64_QPI_Program(uint8_t* pData, uint32_t len, uint32_t rawAddr);
 PY25Q64_STATE PY25Q64_QPI_MassErase(void);
 PY25Q64_STATE PY25Q64_QPI_BlockErase(uint32_t BlockAddr);
 PY25Q64_STATE PY25Q64_QPI_SetReadParameter(void);
@@ -181,7 +181,7 @@ PY25Q64_STATE PY25Q63_QPI_IsBusy(void);
 uint8_t PY25Q64_QPI_ReadID(void);
 
 PY25Q64_STATE PY25Q64_MemoryMappedMode(void);
-PY25Q64_STATE PY25Q64_Program(uint8_t* pData, uint16_t len, uint32_t rawAddr);
+PY25Q64_STATE PY25Q64_Program(uint8_t* pData, uint32_t len, uint32_t rawAddr);
 PY25Q64_STATE PY25Q64_MassErase(void);
 PY25Q64_STATE PY25Q64_BlockErase(uint32_t BlockAddr);
 PY25Q64_STATE PY25Q64_QPIEnable(void);

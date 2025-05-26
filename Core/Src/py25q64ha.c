@@ -154,7 +154,7 @@ PY25Q64_STATE PY25Q64_QPI_MemoryMappedMode(void)
   return PY25Q64_OK;
 }
 
-PY25Q64_STATE PY25Q64_QPI_Program(uint8_t* pData, uint16_t len, uint32_t rawAddr)
+PY25Q64_STATE PY25Q64_QPI_Program(uint8_t* pData, uint32_t len, uint32_t rawAddr)
 {
   XSPI_RegularCmdTypeDef sCommands = { 0 };
   uint32_t endAddr = 0U;
